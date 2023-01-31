@@ -7,11 +7,13 @@
 #include <tchar.h>
 #include <windows.h>
 #include <unistd.h>
+#include <stdio.h>
 #define ID_TIMER 1
+#define FRUIT_TIMER 2
 #define SW 1920
 #define SH 1080
-#define WW 1280
-#define WH 720
+#define WW 1290
+#define WH 740
 
 /*  Declare Windows procedure  */
 LRESULT CALLBACK WindowProcedure (HWND, UINT, WPARAM, LPARAM);
@@ -30,6 +32,8 @@ void Move_pacman_down();
 void Move_pacman_left();
 void Move_pacman_right();
 
+void Draw_fruit();
+
 void Set_timers(HWND);
 void Kill_timers(HWND);
 void Load_bitmaps();
@@ -45,13 +49,14 @@ typedef struct Object_info {
     int dy;
 } Object;
 
-Object background, pacman;
-BITMAP bmp_bgnd, bmp_pacman;
-HBITMAP h_bgnd, h_pacman, h_pacman_mask;
+Object background, pacman, fruit;
+BITMAP bmp_bgnd, bmp_pacman, bmp_fruit;
+HBITMAP h_bgnd, h_pacman, h_pacman_mask, h_fruit, h_fruit_mask;
 HDC hdc_mem, hdc_buffer;
 HBITMAP hbm_old;
 
-static int pacman_row, pacman_col;
+static int pacman_row, pacman_col, fruit_row;
+static bool draw_fruit, pacman_fruit, pacman_dead;
 
 int WINAPI WinMain (HINSTANCE hThisInstance,
                      HINSTANCE hPrevInstance,
@@ -120,6 +125,17 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
 
 LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    // this should be 2nd window and its procedure
+    // first window is a welcome screen that includes 3 button groups
+        // start game
+        // pick your character radio buttons
+        // high score
+    // each of them is pretty much self-explanatory
+
+    // also, 2nd window should have some black space on top
+    // to show current score
+    // and some black space on bottom
+    // to show currently eaten fruit and number of lives
     switch (message)                  /* handle the messages */
     {
         case WM_KEYDOWN:
@@ -143,6 +159,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
         case WM_CREATE:
         {
             PlaySound("pacman_beginning.wav", NULL, SND_FILENAME | SND_ASYNC);
+            // to-do: everything has to stop until this sound finishes
 
             Set_timers(hwnd);
 
@@ -161,6 +178,17 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
             Draw_scene(hdc, &rect);
             ReleaseDC(hwnd, hdc);
 
+            switch (wParam) {
+                case FRUIT_TIMER:
+                {
+                    fruit_row++;
+                    draw_fruit = true;
+                    //KillTimer(FRUIT_TIMER);
+
+                    break;
+                }
+            }
+
             break;
         }
         case WM_DESTROY:
@@ -176,6 +204,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
 void Set_timers(HWND hwnd) {
     SetTimer(hwnd, ID_TIMER, 40, NULL);
+    SetTimer(hwnd, FRUIT_TIMER, 5000, NULL);
 }
 
 void Kill_timers(HWND hwnd) {
@@ -183,15 +212,19 @@ void Kill_timers(HWND hwnd) {
 }
 
 void Load_bitmaps() {
-    h_bgnd = (HBITMAP) LoadImage(NULL, "bgnd.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+    h_bgnd = (HBITMAP) LoadImage(NULL, "bgnd_w.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 
     h_pacman = (HBITMAP) LoadImage(NULL, "pacman_move.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
     h_pacman_mask = (HBITMAP) LoadImage(NULL, "pacman_move_mask.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+    h_fruit = (HBITMAP) LoadImage(NULL, "fruits.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+    h_fruit_mask = (HBITMAP) LoadImage(NULL, "fruits_mask.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 }
 
 void Get_objects() {
     GetObject(h_bgnd, sizeof(BITMAP), &bmp_bgnd);
     GetObject(h_pacman, sizeof(BITMAP), &bmp_pacman);
+    GetObject(h_fruit, sizeof(BITMAP), &bmp_fruit);
 }
 
 void Initialize_objects() {
@@ -208,6 +241,13 @@ void Initialize_objects() {
     pacman.dy = 10;
     pacman.x = 600;
     pacman.y = 600;
+
+    fruit.width = bmp_fruit.bmWidth;
+    fruit.height = bmp_fruit.bmHeight;
+    fruit.dx = 0;
+    fruit.dy = 0;
+    fruit.x = 600;
+    fruit.y = 450;
 }
 
 void Update_scene(RECT* rect) {
@@ -235,7 +275,30 @@ void Draw_scene(HDC hdc, RECT* rect) {
     hdc_mem = CreateCompatibleDC(hdc);
 
     Draw_bgnd();
-    Draw_pacman();
+
+    if (pacman_dead == false) {
+        Draw_pacman();
+    } else {
+        //Draw_pacman_death();
+        //PlaySound("pacman_death.wav", NULL, SND_FILENAME | SND_ASYNC);
+    }
+
+    if ((pacman.x >= fruit.x - fruit.width / 4 && pacman.x <= fruit.x + fruit.width / 4) &&
+        (pacman.y >= fruit.y - fruit.height / 16 && pacman.y <= fruit.y + fruit.height / 16)) {
+        PlaySound("pacman_eat_fruit.wav", NULL, SND_FILENAME | SND_ASYNC);
+        pacman_fruit = true;
+        //score++
+    } else {
+        pacman_fruit = false;
+    }
+
+    if (draw_fruit && pacman_fruit == false) {
+        Draw_fruit();
+        //should disappear after moving
+    }
+
+    // Draw_ghost()
+    // check for pacman_ghost collision
 
     BitBlt(hdc, 0, 0, rect->right, rect->bottom, hdc_buffer, 0, 0, SRCCOPY);
 
@@ -248,8 +311,9 @@ void Draw_scene(HDC hdc, RECT* rect) {
     DeleteObject(hbm_old_buffer);
 }
 
+// implement walk till collision with wall
 void Move_pacman_left() {
-    PlaySound("munch_1.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
+    PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 0;
     if (pacman.x > 0)
         pacman.x -= pacman.dx;
@@ -300,4 +364,12 @@ void Move_pacman_down() {
         pacman_col = 1;
     else
         pacman_col = 0;
+}
+
+void Draw_fruit() {
+    hbm_old = (HBITMAP) SelectObject(hdc_mem, h_fruit);
+    BitBlt(hdc_buffer, fruit.x, fruit.y, fruit.width, fruit.height / 4, hdc_mem, 0 * fruit.width, fruit_row * fruit.height / 4, SRCAND);
+
+    hbm_old = (HBITMAP) SelectObject(hdc_mem, h_fruit_mask);
+    BitBlt(hdc_buffer, fruit.x, fruit.y, fruit.width, fruit.height / 4, hdc_mem, 0 * fruit.width, fruit_row * fruit.height / 4, SRCPAINT);
 }
