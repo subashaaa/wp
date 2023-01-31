@@ -142,6 +142,8 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
         }
         case WM_CREATE:
         {
+            PlaySound("pacman_beginning.wav", NULL, SND_FILENAME | SND_ASYNC);
+
             Set_timers(hwnd);
 
             Load_bitmaps();
@@ -247,6 +249,7 @@ void Draw_scene(HDC hdc, RECT* rect) {
 }
 
 void Move_pacman_left() {
+    PlaySound("munch_1.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 0;
     if (pacman.x > 0)
         pacman.x -= pacman.dx;
@@ -255,9 +258,14 @@ void Move_pacman_left() {
         pacman_col = 1;
     else
         pacman_col = 0;
+
+//    mciSendString("open pacman_chomp.wav type waveaudio alias chomp", NULL, 0, NULL);
+//    mciSendString("play chomp", NULL, 0, NULL);
+//    mciSendString("close chomp", NULL, 0, NULL);
 }
 
 void Move_pacman_right() {
+    PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 1;
 
     if (pacman.x < 1280 - pacman.width / 2)
@@ -270,6 +278,7 @@ void Move_pacman_right() {
 }
 
 void Move_pacman_up() {
+    PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 2;
 
     pacman.y -= pacman.dy;
@@ -281,6 +290,7 @@ void Move_pacman_up() {
 }
 
 void Move_pacman_down() {
+    PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 3;
 
     if (pacman.y < 700 - pacman.height / 4)
