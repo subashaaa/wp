@@ -8,12 +8,15 @@
 #include <windows.h>
 #include <unistd.h>
 #include <stdio.h>
+#include "resource.h"
 #define ID_TIMER 1
 #define FRUIT_TIMER 2
 #define SW 1920
 #define SH 1080
-#define WW 1290
-#define WH 740
+#define GW 1290
+#define GH 740
+#define MW 300
+#define MH 250
 
 /*  Declare Windows procedure  */
 LRESULT CALLBACK WindowProcedure (HWND, UINT, WPARAM, LPARAM);
@@ -58,18 +61,22 @@ HBITMAP hbm_old;
 static int pacman_row, pacman_col, fruit_row;
 static bool draw_fruit, pacman_fruit, pacman_dead;
 
+LRESULT CALLBACK WindowProcedure(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK WindowProcedure2(HWND, UINT, WPARAM, LPARAM);
+HWND hwnd;
+HWND hwnd2;
+
 int WINAPI WinMain (HINSTANCE hThisInstance,
                      HINSTANCE hPrevInstance,
                      LPSTR lpszArgument,
                      int nCmdShow)
 {
-    HWND hwnd;               /* This is the handle for our window */
     MSG messages;            /* Here messages to the application are saved */
     WNDCLASSEX wincl;        /* Data structure for the windowclass */
 
     /* The Window structure */
     wincl.hInstance = hThisInstance;
-    wincl.lpszClassName = szClassName;
+    wincl.lpszClassName = "Home";
     wincl.lpfnWndProc = WindowProcedure;      /* This function is called by windows */
     wincl.style = CS_DBLCLKS;                 /* Catch double-clicks */
     wincl.cbSize = sizeof (WNDCLASSEX);
@@ -88,24 +95,31 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     if (!RegisterClassEx (&wincl))
         return 0;
 
-    /* The class is registered, let's create the program*/
+    wincl.lpfnWndProc = WindowProcedure2;
+    wincl.lpszClassName = "Game";
+
+    if (!RegisterClassEx (&wincl))
+        return 0;
+
     hwnd = CreateWindowEx (
            0,                   /* Extended possibilites for variation */
-           szClassName,         /* Classname */
-           _T("Code::Blocks Template Windows App"),       /* Title Text */
-           WS_OVERLAPPEDWINDOW, /* default window */
-           (SW - WW)/2,       /* Windows decides the position */
-           (SH - WH)/2,       /* where the window ends up on the screen */
-           WW,                 /* The programs width */
-           WH,                 /* and height in pixels */
+           "Home",         /* Classname */
+           _T("Text box"),       /* Title Text */
+           WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX, /* default window */
+           (SW - MW)/2,       /* Windows decides the position */
+           (SH - MH)/2,       /* where the window ends up on the screen */
+           MW,                 /* The programs width */
+           MH,                 /* and height in pixels */
            HWND_DESKTOP,        /* The window is a child-window to desktop */
            NULL,                /* No menu */
            hThisInstance,       /* Program Instance handler */
            NULL                 /* No Window Creation data */
-           );
+    );
 
-    /* Make the window visible on the screen */
-    ShowWindow (hwnd, nCmdShow);
+    ShowWindow(hwnd, nCmdShow);
+
+    /* The class is registered, let's create the program*/
+
 
     /* Run the message loop. It will run until GetMessage() returns 0 */
     while (GetMessage (&messages, NULL, 0, 0))
@@ -120,22 +134,88 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     return messages.wParam;
 }
 
-
-/*  This function is called by the Windows function DispatchMessage()  */
-
-LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    // this should be 2nd window and its procedure
-    // first window is a welcome screen that includes 3 button groups
-        // start game
-        // pick your character radio buttons
-        // high score
-    // each of them is pretty much self-explanatory
-
     // also, 2nd window should have some black space on top
     // to show current score
     // and some black space on bottom
     // to show currently eaten fruit and number of lives
+    HINSTANCE hinst = (HINSTANCE)GetWindowLong(hwnd, GWLP_HINSTANCE);
+    switch (message)                  /* handle the messages */
+    {
+        case WM_CREATE:
+        {
+            CreateWindow("button", "Start game", WS_CHILD | WS_VISIBLE | BS_CHECKBOX | BS_PUSHLIKE,
+                         55,15,185,45, hwnd, (HMENU)START, hinst, NULL);
+            CreateWindow("button", "Male", WS_CHILD | WS_VISIBLE | BS_RADIOBUTTON | BS_RIGHTBUTTON | BS_RIGHT,
+                         55,70,70,20, hwnd, (HMENU)PACMAN_MALE, hinst, NULL);
+            CreateWindow("button", "Female", WS_CHILD | WS_VISIBLE | BS_RADIOBUTTON | BS_RIGHTBUTTON | BS_RIGHT,
+                         170,70,70,20, hwnd, (HMENU)PACMAN_FEMALE, hinst, NULL);
+            CreateWindow("button", "Leaderboard", WS_CHILD | WS_VISIBLE | BS_CHECKBOX | BS_PUSHLIKE,
+                         55,150,185,45, hwnd, (HMENU)BOARD, hinst, NULL);
+
+//            PAINTSTRUCT ps;
+//            HDC hdc = BeginPaint(hwnd, &ps);
+//            hdc_mem = CreateCompatibleDC(hdc);
+//
+//            h_pacman = (HBITMAP) LoadImage(NULL, "pacman_move.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+//            h_pacman_mask = (HBITMAP) LoadImage(NULL, "pacman_move_mask.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+//
+//            GetObject(h_pacman, sizeof(BITMAP), &bmp_pacman);
+//
+//            pacman.width = bmp_pacman.bmWidth;
+//            pacman.height = bmp_pacman.bmHeight;
+//
+//            hbm_old = (HBITMAP) SelectObject(hdc_mem, h_pacman);
+//            BitBlt(hdc, 150, 150, pacman.width / 2, pacman.height / 4, hdc_mem, 1 * pacman.width / 2, 1 * pacman.height / 4, SRCAND);
+//
+//            hbm_old = (HBITMAP) SelectObject(hdc_mem, h_pacman_mask);
+//            BitBlt(hdc, 150, 150, pacman.width / 2, pacman.height / 4, hdc_mem, 1 * pacman.width / 2, 1 * pacman.height / 4, SRCPAINT);
+//
+//            SelectObject(hdc_mem, hbm_old);
+//            DeleteDC(hdc_mem);
+//            EndPaint(hwnd, &ps);
+            break;
+        }
+        case WM_COMMAND:
+        {
+            switch(LOWORD(wParam))
+            {
+                case START:
+                {
+                    hwnd2 = CreateWindowEx(
+                       0,                   /* Extended possibilites for variation */
+                       "Game",         /* Classname */
+                       _T("Code::Blocks Template Windows App"),       /* Title Text */
+                       WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX, /* default window */
+                       (SW - GW)/2,       /* Windows decides the position */
+                       (SH - GH)/2,       /* where the window ends up on the screen */
+                       GW,                 /* The programs width */
+                       GH,                 /* and height in pixels */
+                       hwnd,        /* The window is a child-window to desktop */
+                       NULL,                /* No menu */
+                       (HINSTANCE)GetWindowLong(hwnd, GWLP_HINSTANCE),
+                       NULL                 /* No Window Creation data */
+                    );
+
+                    ShowWindow(hwnd2, 1);
+                    break;
+                }
+            }
+            break;
+        }
+        case WM_DESTROY:
+            PostQuitMessage (0);       /* send a WM_QUIT to the message queue */
+            break;
+        default:                      /* for messages that we don't deal with */
+            return DefWindowProc (hwnd, message, wParam, lParam);
+    }
+
+    return 0;
+}
+
+LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
     switch (message)                  /* handle the messages */
     {
         case WM_KEYDOWN:
@@ -160,6 +240,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
         {
             PlaySound("pacman_beginning.wav", NULL, SND_FILENAME | SND_ASYNC);
             // to-do: everything has to stop until this sound finishes
+            // blocking call
 
             Set_timers(hwnd);
 
@@ -188,7 +269,6 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     break;
                 }
             }
-
             break;
         }
         case WM_DESTROY:
