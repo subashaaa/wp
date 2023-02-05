@@ -11,6 +11,11 @@
 #include "resource.h"
 #define ID_TIMER 1
 #define FRUIT_TIMER 2
+#define PACMAN_TIMER 7
+#define LEFT 3
+#define RIGHT 4
+#define UP 5
+#define DOWN 6
 #define SW 1920
 #define SH 1080
 #define GW 1290
@@ -43,6 +48,11 @@ void Load_bitmaps();
 void Get_objects();
 void Initialize_objects();
 
+bool pacman_can_move_right();
+bool pacman_can_move_left();
+bool pacman_can_move_up();
+bool pacman_can_move_down();
+
 typedef struct Object_info {
     int width;
     int height;
@@ -52,6 +62,7 @@ typedef struct Object_info {
     int dy;
 } Object;
 
+int pacmanDirection = LEFT;
 Object background, pacman, fruit;
 BITMAP bmp_bgnd, bmp_pacman, bmp_fruit;
 HBITMAP h_bgnd, h_pacman, h_pacman_mask, h_fruit, h_fruit_mask;
@@ -222,16 +233,20 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
         {
             switch (wParam) {
                 case VK_LEFT:
-                    Move_pacman_left();
+                    if(pacman_can_move_left())
+                        pacmanDirection = LEFT;
                     break;
                 case VK_RIGHT:
-                    Move_pacman_right();
+                    if(pacman_can_move_right())
+                        pacmanDirection = RIGHT;
                     break;
                 case VK_UP:
-                    Move_pacman_up();
+                    if(pacman_can_move_up())
+                        pacmanDirection = UP;
                     break;
                 case VK_DOWN:
-                    Move_pacman_down();
+                    if(pacman_can_move_down())
+                        pacmanDirection = DOWN;
                     break;
             }
             break;
@@ -268,6 +283,19 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
                     break;
                 }
+                case PACMAN_TIMER:
+                {
+                    if(pacmanDirection == LEFT && pacman_can_move_left())
+                        Move_pacman_left();
+                    if(pacmanDirection == RIGHT && pacman_can_move_right())
+                        Move_pacman_right();
+                    if(pacmanDirection == UP && pacman_can_move_up())
+                        Move_pacman_up();
+                    if(pacmanDirection == DOWN && pacman_can_move_down())
+                        Move_pacman_down();
+
+                    break;
+                }
             }
             break;
         }
@@ -285,10 +313,12 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 void Set_timers(HWND hwnd) {
     SetTimer(hwnd, ID_TIMER, 40, NULL);
     SetTimer(hwnd, FRUIT_TIMER, 5000, NULL);
+    SetTimer(hwnd, PACMAN_TIMER, 50, NULL);
 }
 
 void Kill_timers(HWND hwnd) {
     KillTimer(hwnd, ID_TIMER);
+    KillTimer(hwnd, PACMAN_TIMER);
 }
 
 void Load_bitmaps() {
@@ -320,7 +350,7 @@ void Initialize_objects() {
     pacman.dx = 10;
     pacman.dy = 10;
     pacman.x = 600;
-    pacman.y = 600;
+    pacman.y = 570;
 
     fruit.width = bmp_fruit.bmWidth;
     fruit.height = bmp_fruit.bmHeight;
@@ -344,7 +374,11 @@ void Draw_pacman() {
     BitBlt(hdc_buffer, pacman.x, pacman.y, pacman.width / 2, pacman.height / 4, hdc_mem, pacman_col * pacman.width / 2, pacman_row * pacman.height / 4, SRCAND);
 
     hbm_old = (HBITMAP) SelectObject(hdc_mem, h_pacman_mask);
-    BitBlt(hdc_buffer, pacman.x, pacman.y, pacman.width / 2, pacman.height / 4, hdc_mem, pacman_col * pacman.width / 2, pacman_row * pacman.height / 4, SRCPAINT);
+
+    if(pacmanDirection == LEFT)
+        BitBlt(hdc_buffer, pacman.x, (pacman.y) + 5, pacman.width / 2, pacman.height / 4, hdc_mem, pacman_col * pacman.width / 2, pacman_row * pacman.height / 4, SRCPAINT);
+    else
+        BitBlt(hdc_buffer, pacman.x, pacman.y, pacman.width / 2, pacman.height / 4, hdc_mem, pacman_col * pacman.width / 2, pacman_row * pacman.height / 4, SRCPAINT);
 }
 
 void Draw_scene(HDC hdc, RECT* rect) {
@@ -453,3 +487,140 @@ void Draw_fruit() {
     hbm_old = (HBITMAP) SelectObject(hdc_mem, h_fruit_mask);
     BitBlt(hdc_buffer, fruit.x, fruit.y, fruit.width, fruit.height / 4, hdc_mem, 0 * fruit.width, fruit_row * fruit.height / 4, SRCPAINT);
 }
+
+bool pacman_can_move_right(){
+    if(pacman.y == 570 && pacman.x > 359 && pacman.x < 820)
+        return true;
+
+    if(pacman.y == 570 && pacman.x > 29 && pacman.x < 230)
+        return true;
+
+    if(pacman.y == 570 && pacman.x > 949 && pacman.x < 1150)
+        return true;
+
+    if(pacman.y == 440 && pacman.x > 159 && pacman.x < 1020)
+        return true;
+
+    if(pacman.y == 180 && pacman.x > 159 && pacman.x < 1020)
+        return true;
+
+    if(pacman.y == 50 && pacman.x > 359 && pacman.x < 820)
+        return true;
+
+    if(pacman.y == 50 && pacman.x > 29 && pacman.x < 230)
+        return true;
+
+    if(pacman.y == 50 && pacman.x > 949 && pacman.x < 1150)
+        return true;
+
+    if(pacman.y == 310 && pacman.x > 29 && pacman.x < 360)
+        return true;
+
+    if(pacman.y == 310 && pacman.x > 819 && pacman.x < 1150)
+        return true;
+
+    return false;
+}
+
+bool pacman_can_move_left(){
+    if(pacman.y == 570 && pacman.x > 360 && pacman.x < 821)
+        return true;
+
+    if(pacman.y == 570 && pacman.x > 30 && pacman.x < 231)
+        return true;
+
+    if(pacman.y == 570 && pacman.x > 950 && pacman.x < 1151)
+        return true;
+
+    if(pacman.y == 440 && pacman.x > 160 && pacman.x < 1021)
+        return true;
+
+    if(pacman.y == 180 && pacman.x > 160 && pacman.x < 1021)
+        return true;
+
+    if(pacman.y == 50 && pacman.x > 360 && pacman.x < 821)
+        return true;
+
+    if(pacman.y == 50 && pacman.x > 30 && pacman.x < 231)
+        return true;
+
+    if(pacman.y == 50 && pacman.x > 950 && pacman.x < 1151)
+        return true;
+
+    if(pacman.y == 310 && pacman.x > 30 && pacman.x < 361)
+        return true;
+
+    if(pacman.y == 310 && pacman.x > 820 && pacman.x < 1151)
+        return true;
+
+    return false;
+}
+
+bool pacman_can_move_up() {
+    if(pacman.x == 360 && pacman.y < 571 && pacman.y > 50)
+        return true;
+
+    if(pacman.x == 820 && pacman.y < 571 && pacman.y > 50)
+        return true;
+
+    if(pacman.x == 1150 && pacman.y < 571 && pacman.y > 50)
+        return true;
+
+    if(pacman.x == 30 && pacman.y < 571 && pacman.y > 50)
+        return true;
+
+    if(pacman.x == 160 && pacman.y < 441 && pacman.y > 180)
+        return true;
+
+    if(pacman.x == 1020 && pacman.y < 441 && pacman.y > 180)
+        return true;
+
+    if(pacman.x == 230 && pacman.y < 181 && pacman.y > 50)
+        return true;
+
+    if(pacman.x == 950 && pacman.y < 181 && pacman.y > 50)
+        return true;
+
+    if(pacman.x == 230 && pacman.y < 571 && pacman.y > 440)
+        return true;
+
+    if(pacman.x == 950 && pacman.y < 571 && pacman.y > 440)
+        return true;
+
+    return false;
+}
+
+bool pacman_can_move_down() {
+    if(pacman.x == 360 && pacman.y < 570 && pacman.y > 49)
+        return true;
+
+    if(pacman.x == 820 && pacman.y < 570 && pacman.y > 49)
+        return true;
+
+    if(pacman.x == 1150 && pacman.y < 570 && pacman.y > 49)
+        return true;
+
+    if(pacman.x == 30 && pacman.y < 570 && pacman.y > 49)
+        return true;
+
+    if(pacman.x == 160 && pacman.y < 440 && pacman.y > 179)
+        return true;
+
+    if(pacman.x == 1020 && pacman.y < 440 && pacman.y > 179)
+        return true;
+
+    if(pacman.x == 230 && pacman.y < 180 && pacman.y > 49)
+        return true;
+
+    if(pacman.x == 950 && pacman.y < 180 && pacman.y > 49)
+        return true;
+
+    if(pacman.x == 230 && pacman.y < 570 && pacman.y > 439)
+        return true;
+
+    if(pacman.x == 950 && pacman.y < 570 && pacman.y > 439)
+        return true;
+
+    return false;
+}
+
