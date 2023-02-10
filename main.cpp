@@ -27,6 +27,8 @@
 #define UP 5
 #define DOWN 6
 
+#define DEATH_TIMER 8
+
 #define SW 1920
 #define SH 1080
 #define GW 1290
@@ -67,6 +69,9 @@ bool pacman_can_move_down();
 void Uncheck(HWND, HWND);
 void ButtonSwitch(HWND hwnd, HWND hwndControl);
 
+void Draw_pacman_death();
+void Draw_small_dots(HDC hdc);
+
 typedef struct Object_info {
     int width;
     int height;
@@ -84,14 +89,16 @@ int score;
 int callback(void *pArg, int argc, char **argv, char **imekolone);
 INT_PTR CALLBACK ShowLeaderBoard(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam);
 
-Object background, pacman, fruit;
-BITMAP bmp_bgnd, bmp_pacman, bmp_fruit;
-HBITMAP h_bgnd, h_pacman, h_pacman_mask, h_fruit, h_fruit_mask;
+Object background, pacman, fruit, pacman_death;
+BITMAP bmp_bgnd, bmp_pacman, bmp_fruit, bmp_pacman_death;
+HBITMAP h_bgnd, h_pacman, h_pacman_mask, h_fruit, h_fruit_mask, h_pacman_death, h_pacman_death_mask;
 HDC hdc_mem, hdc_buffer;
 HBITMAP hbm_old;
+HPEN pen;
+HBRUSH brush;
 
-static int pacman_row, pacman_col, fruit_row;
-static bool draw_fruit, pacman_fruit, pacman_dead, already_ate;
+static int pacman_row, pacman_col, fruit_row, pacman_death_col;
+static bool draw_fruit, pacman_fruit, pacman_dead, already_ate, initial_small_dots;
 
 LRESULT CALLBACK WindowProcedure(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK WindowProcedure2(HWND, UINT, WPARAM, LPARAM);
@@ -222,7 +229,6 @@ LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                 }
                 case BOARD:
                 {
-                    printf("djes");
                     DialogBox(NULL, MAKEINTRESOURCE(IDD_BOARD), hwnd, ShowLeaderBoard);
                     break;
                 }
@@ -247,20 +253,29 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
         {
             switch (wParam) {
                 case VK_LEFT:
-                    if(pacman_can_move_left())
+                    if(pacman_dead == false && pacman_can_move_left())
                         pacman_direction = LEFT;
                     break;
                 case VK_RIGHT:
-                    if(pacman_can_move_right())
+                    if(pacman_dead == false && pacman_can_move_right())
                         pacman_direction = RIGHT;
                     break;
                 case VK_UP:
-                    if(pacman_can_move_up())
+                    if(pacman_dead == false && pacman_can_move_up())
                         pacman_direction = UP;
                     break;
                 case VK_DOWN:
-                    if(pacman_can_move_down())
+                    if(pacman_dead == false && pacman_can_move_down())
                         pacman_direction = DOWN;
+                    break;
+                case VK_ESCAPE: // code snippet for death animation. to be used for pacman_ghost collision.
+                    if (pacman_dead == false) {
+                        pacman_death.x = pacman.x;
+                        pacman_death.y = pacman.y;
+                        pacman_dead = true;
+                        SetTimer(hwnd, DEATH_TIMER, 130, NULL);
+                        PlaySound("pacman_death.wav", NULL, SND_FILENAME | SND_ASYNC);
+                    }
                     break;
             }
             break;
@@ -276,7 +291,6 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
             Load_bitmaps();
             Get_objects();
             Initialize_objects();
-
             break;
         }
         case WM_TIMER:
@@ -302,6 +316,15 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
                     break;
                 }
+                case DEATH_TIMER:
+                {
+                    if (pacman_dead) {
+                        if (pacman_death_col < 10)
+                            pacman_death_col++;
+                    } else
+                        pacman_death_col = 0;
+                    break;
+                }
             }
             break;
         }
@@ -324,6 +347,7 @@ void Set_timers(HWND hwnd) {
 void Kill_timers(HWND hwnd) {
     KillTimer(hwnd, ID_TIMER);
     KillTimer(hwnd, PACMAN_TIMER);
+    KillTimer(hwnd, DEATH_TIMER);
 }
 
 void Load_bitmaps() {
@@ -343,12 +367,16 @@ void Load_bitmaps() {
 
     h_fruit = (HBITMAP) LoadImage(NULL, "fruits.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
     h_fruit_mask = (HBITMAP) LoadImage(NULL, "fruits_mask.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+    h_pacman_death = (HBITMAP) LoadImage(NULL, "pacman_death.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+    h_pacman_death_mask = (HBITMAP) LoadImage(NULL, "pacman_death_mask.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 }
 
 void Get_objects() {
     GetObject(h_bgnd, sizeof(BITMAP), &bmp_bgnd);
     GetObject(h_pacman, sizeof(BITMAP), &bmp_pacman);
     GetObject(h_fruit, sizeof(BITMAP), &bmp_fruit);
+    GetObject(h_pacman_death, sizeof(BITMAP), &bmp_pacman_death);
 }
 
 void Initialize_objects() {
@@ -372,6 +400,13 @@ void Initialize_objects() {
     fruit.dy = 0;
     fruit.x = 600;
     fruit.y = 450;
+
+    pacman_death.width = bmp_pacman_death.bmWidth;
+    pacman_death.height = bmp_pacman_death.bmHeight;
+    pacman_death.dx = 0;
+    pacman_death.dy = 0;
+    pacman_death.x = 0;
+    pacman_death.y = 0;
 }
 
 void Update_scene(RECT* rect) {
@@ -384,14 +419,16 @@ void Draw_bgnd() {
 }
 
 void Draw_pacman() {
-    hbm_old = (HBITMAP) SelectObject(hdc_mem, h_pacman);
-    BitBlt(hdc_buffer, pacman.x, pacman.y, pacman.width / 2, pacman.height / 4, hdc_mem, pacman_col * pacman.width / 2, pacman_row * pacman.height / 4, SRCAND);
+    if (pacman_dead == false) {
+        hbm_old = (HBITMAP) SelectObject(hdc_mem, h_pacman);
+        BitBlt(hdc_buffer, pacman.x, pacman.y + 10, pacman.width / 2, pacman.height / 4, hdc_mem, pacman_col * pacman.width / 2, pacman_row * pacman.height / 4, SRCAND);
 
-    hbm_old = (HBITMAP) SelectObject(hdc_mem, h_pacman_mask);
-    if(pacman_direction == LEFT)
-        BitBlt(hdc_buffer, pacman.x, pacman.y, pacman.width / 2, pacman.height / 4, hdc_mem, pacman_col * pacman.width / 2, pacman_row * pacman.height / 4, SRCPAINT);
-    else
-        BitBlt(hdc_buffer, pacman.x, pacman.y, pacman.width / 2, pacman.height / 4, hdc_mem, pacman_col * pacman.width / 2, pacman_row * pacman.height / 4, SRCPAINT);
+        hbm_old = (HBITMAP) SelectObject(hdc_mem, h_pacman_mask);
+        if(pacman_direction == LEFT)
+            BitBlt(hdc_buffer, pacman.x, pacman.y + 10, pacman.width / 2, pacman.height / 4, hdc_mem, pacman_col * pacman.width / 2, pacman_row * pacman.height / 4, SRCPAINT);
+        else
+            BitBlt(hdc_buffer, pacman.x, pacman.y + 10, pacman.width / 2, pacman.height / 4, hdc_mem, pacman_col * pacman.width / 2, pacman_row * pacman.height / 4, SRCPAINT);
+    }
 }
 
 void Draw_scene(HDC hdc, RECT* rect) {
@@ -403,11 +440,14 @@ void Draw_scene(HDC hdc, RECT* rect) {
 
     Draw_bgnd();
 
+    SelectObject(hdc, brush);
+    SelectObject(hdc, pen);
+    Draw_small_dots(hdc_mem); // or hdc_buffer, needs further testing
+
     if (pacman_dead == false) {
         Draw_pacman();
     } else {
-        //Draw_pacman_death();
-        //PlaySound("pacman_death.wav", NULL, SND_FILENAME | SND_ASYNC);
+        Draw_pacman_death();
     }
 
     if ((pacman.x >= fruit.x - fruit.width / 4 && pacman.x <= fruit.x + fruit.width / 4) &&
@@ -418,6 +458,7 @@ void Draw_scene(HDC hdc, RECT* rect) {
             pacman_fruit = true;
             score += 10;
             fruit_row++;
+            printf("%d\n", score);
         }
     }
 
@@ -719,5 +760,82 @@ INT_PTR CALLBACK ShowLeaderBoard(HWND hdlg, UINT message, WPARAM wParam, LPARAM 
 	    }
         default:
             return FALSE;
+    }
+}
+
+void Draw_pacman_death() {
+    hbm_old = (HBITMAP) SelectObject(hdc_mem, h_pacman_death);
+    BitBlt(hdc_buffer, pacman_death.x, pacman_death.y, pacman_death.width / 11, pacman_death.height, hdc_mem, pacman_death_col * pacman_death.width / 11, 0 * pacman_death.height, SRCAND);
+
+    hbm_old = (HBITMAP) SelectObject(hdc_mem, h_pacman_death_mask);
+    BitBlt(hdc_buffer, pacman_death.x, pacman_death.y, pacman_death.width / 11, pacman_death.height, hdc_mem, pacman_death_col * pacman_death.width / 11, 0 * pacman_death.height, SRCPAINT);
+}
+
+void Draw_small_dots(HDC hdc) {
+    static int dimension = 20;
+    static int num_of_dots = 60;
+    POINT small_dots[num_of_dots] = {   {70, 155},
+                                        {70, 255},
+                                        {70, 355},
+                                        {70, 455},
+                                        {70, 555},
+                                        {140, 625},
+                                        {210, 625},
+                                        {280, 625},
+                                        {415, 625},
+                                        {490, 625},
+                                        {565, 625},
+                                        {715, 625},
+                                        {795, 625},
+                                        {875, 625},
+                                        {1005, 625},
+                                        {1075, 625},
+                                        {1145, 625},
+                                        {140, 90},
+                                        {210, 90},
+                                        {280, 90},
+                                        {415, 90},
+                                        {490, 90},
+                                        {565, 90},
+                                        {635, 90},
+                                        {715, 90},
+                                        {795, 90},
+                                        {875, 90},
+                                        {1005, 90},
+                                        {1075, 90},
+                                        {1145, 90},
+                                        {210, 495},
+                                        {280, 495},
+                                        {350, 495},
+                                        {415, 495},
+                                        {490, 495},
+                                        {565, 495},
+                                        {715, 495},
+                                        {795, 495},
+                                        {875, 495},
+                                        {940, 495},
+                                        {1005, 495},
+                                        {1075, 495},
+                                        {210, 225},
+                                        {280, 225},
+                                        {350, 225},
+                                        {415, 225},
+                                        {490, 225},
+                                        {565, 225},
+                                        {635, 225},
+                                        {715, 225},
+                                        {795, 225},
+                                        {875, 225},
+                                        {940, 225},
+                                        {1005, 225},
+                                        {1075, 225},
+                                        {1200, 155},
+                                        {1200, 255},
+                                        {1200, 355},
+                                        {1200, 455},
+                                        {1200, 555},   };
+    for (int i = 0; i < num_of_dots; ++i) {
+        //if (dot_eaten == false)
+        Ellipse(hdc, small_dots[i].x - dimension / 2, small_dots[i].y + dimension / 2, small_dots[i].x + dimension / 2, small_dots[i].y - dimension / 2);
     }
 }
