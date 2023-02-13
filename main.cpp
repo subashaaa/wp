@@ -142,6 +142,7 @@ LRESULT CALLBACK WindowProcedure(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK WindowProcedure2(HWND, UINT, WPARAM, LPARAM);
 HWND hwnd;
 HWND hwnd2;
+HWND hwnd3;
 
 POINT small_dots[n_of_s_dots] = {   {70, 155},
                                         {70, 255},
@@ -505,7 +506,7 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 }
                 case EAT_GHOST_TIMER:
                 {
-                    pacman_can_eat_ghosts = false;
+                    //pacman_can_eat_ghosts = false;
                     break;
                 }
                 case WEAK_TIMER_CHANGE:
@@ -515,7 +516,7 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     else if (weak_col == 1)
                         weak_col = 0;
 
-                    printf("%d\n", weak_col);
+                    printf("tc\n");
                     break;
                 }
                 case WEAK_TIMER_CHANGE_START:
@@ -525,22 +526,21 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 }
                 case EAT_GHOST_TIMER_END:
                 {
-                    pacman_can_eat_ghosts = false;
                     KillTimer(hwnd, EAT_GHOST_TIMER);
                     KillTimer(hwnd, WEAK_TIMER_CHANGE_START);
                     KillTimer(hwnd, WEAK_TIMER_CHANGE);
-
-                    if (can_change == true) {
-                        SetTimer(hwnd, EAT_GHOST_TIMER, 20000, NULL);
-                        SetTimer(hwnd, WEAK_TIMER_CHANGE_START, 14000, NULL);
-                    }
+                    pacman_can_eat_ghosts = false;
+                    can_change = false;
+                    printf("egte\n");
                     break;
                 }
                 default:
                 {
                     if (can_change == true) {
-                        SetTimer(hwnd, EAT_GHOST_TIMER, 20000, NULL);
-                        SetTimer(hwnd, WEAK_TIMER_CHANGE_START, 14000, NULL);
+                        SetTimer(hwnd, EAT_GHOST_TIMER, 8000, NULL);
+                        SetTimer(hwnd, WEAK_TIMER_CHANGE_START, 4000, NULL);
+                        SetTimer(hwnd, EAT_GHOST_TIMER_END, 12001, NULL);
+                        can_change = false;
                     }
                 }
             }
@@ -563,7 +563,6 @@ void Set_timers(HWND hwnd) {
     SetTimer(hwnd, DEATH_TIMER, 130, NULL);
     SetTimer(hwnd, GREEN_GHOST_TIMER, 50, NULL);
     SetTimer(hwnd, RED_GHOST_TIMER, 50, NULL);
-    SetTimer(hwnd, EAT_GHOST_TIMER_END, 20001, NULL);
 }
 
 void Kill_timers(HWND hwnd) {
