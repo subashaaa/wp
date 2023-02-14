@@ -35,11 +35,12 @@
 #define WEAK_TIMER_CHANGE 14
 #define WEAK_TIMER_END 15
 #define EAT_GHOST_TIMER_END 16
+#define FRUIT_TIMER 17
 
 #define SW 1920
 #define SH 1080
 #define GW 1290
-#define GH 860
+#define GH 810
 #define MW 300
 #define MH 250
 
@@ -55,10 +56,11 @@ LRESULT CALLBACK WindowProcedure (HWND, UINT, WPARAM, LPARAM);
 TCHAR szClassName[ ] = _T("CodeBlocksWindowsApp");
 
 void Update_scene(RECT*);
-void Draw_scene(HDC, RECT*);
+void Draw_scene(HWND, HDC, RECT*);
 
 void Draw_bgnd();
 void Draw_pacman();
+void Draw_lives();
 
 void Move_pacman_up();
 void Move_pacman_down();
@@ -71,6 +73,7 @@ void Move_ghost_left();
 void Move_ghost_right();
 
 void Draw_fruit();
+void Draw_score();
 
 void Set_timers(HWND);
 void Kill_timers(HWND);
@@ -99,6 +102,9 @@ void Draw_big_dot2(HDC hdc);
 void Draw_big_dot3(HDC hdc);
 void Draw_big_dot4(HDC hdc);
 
+int get_number_column(char number);
+int get_number_row(char number);
+
 typedef struct Object_info {
     int width;
     int height;
@@ -119,14 +125,17 @@ int green_ghost_direction = RIGHT;
 int pacman_gender;
 int gender_error;
 int score;
+int numberOfLives = 3;
 
 int callback(void *pArg, int argc, char **argv, char **imekolone);
 INT_PTR CALLBACK ShowLeaderBoard(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam);
 
-Object background, pacman, fruit, ghost_red, ghost_green, pacman_death, ghost_weak;
-BITMAP bmp_bgnd, bmp_pacman, bmp_fruit, bmp_ghost_red, bmp_ghost_green, bmp_pacman_death, bmp_ghost_weak;
+HWND static_label;
+Object background, pacman, fruit, ghost_red, ghost_green, pacman_death, ghost_weak, number, pacmanLife;
+BITMAP bmp_bgnd, bmp_pacman, bmp_fruit, bmp_ghost_red, bmp_ghost_green, bmp_pacman_death, bmp_ghost_weak, bmp_number, bmp_pacman_life;
 HBITMAP h_bgnd, h_pacman, h_pacman_mask, h_fruit, h_fruit_mask, h_ghost_red, h_ghost_red_mask,
-        h_ghost_green, h_ghost_green_mask, h_pacman_death, h_pacman_death_mask, h_ghost_weak, h_ghost_weak_mask;
+        h_ghost_green, h_ghost_green_mask, h_pacman_death, h_pacman_death_mask, h_ghost_weak, h_ghost_weak_mask,
+        h_number, h_number_mask, h_pacman_life, h_pacman_life_mask;
 HDC hdc_mem, hdc_buffer;
 HBITMAP hbm_old;
 HPEN pen;
@@ -137,6 +146,8 @@ static int pacman_row, pacman_col, fruit_row, pacman_death_col, green_ghost_row,
 static bool draw_fruit, pacman_fruit, pacman_dead, already_ate, initial_small_dots;
 static bool pacman_col_bd_1, pacman_col_bd_2, pacman_col_bd_3, pacman_col_bd_4;
 static bool pacman_can_eat_ghosts, delete_ghost, can_change;
+
+int fruit_score = 10;
 
 LRESULT CALLBACK WindowProcedure(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK WindowProcedure2(HWND, UINT, WPARAM, LPARAM);
@@ -318,8 +329,8 @@ LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                            "Game",              /* Classname */
                            _T("Code::Blocks Template Windows App"),       /* Title Text */
                            WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX,      /* default window */
-                           (SW - GW)/2,         /* Windows decides the position */
-                           (SH - GH)/2,         /* where the window ends up on the screen */
+                           0,         /* Windows decides the position */
+                           0,         /* where the window ends up on the screen */
                            GW,                  /* The programs width */
                            GH,                  /* and height in pixels */
                            hwnd,                /* The window is a child-window to desktop */
@@ -367,6 +378,7 @@ LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 
 LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    HINSTANCE hinst = (HINSTANCE)GetWindowLong(hwnd, GWLP_HINSTANCE);
     switch (message)
     {
         case WM_KEYDOWN:
@@ -396,6 +408,9 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
             PlaySound("pacman_beginning.wav", NULL, SND_FILENAME | SND_ASYNC);
             // to-do: everything has to stop until this sound finishes
             // blocking call
+            //const char* display_score = std::to_string(score).c_str();
+            //static_label = CreateWindow(L"Static", display_score,WS_CHILD | WS_VISIBLE,750,1000,175,25,hwnd,0, hinst,0);
+
 
             Set_timers(hwnd);
 
@@ -410,7 +425,7 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
             HDC hdc = GetDC(hwnd);
             GetClientRect(hwnd, &rect);
             Update_scene(&rect);
-            Draw_scene(hdc, &rect);
+            Draw_scene(hwnd, hdc, &rect);
             ReleaseDC(hwnd, hdc);
 
             switch (wParam) {
@@ -534,6 +549,13 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     printf("egte\n");
                     break;
                 }
+                case FRUIT_TIMER:
+                {
+                    already_ate = false;
+                    pacman_fruit = false;
+                    KillTimer(hwnd, FRUIT_TIMER);
+                    break;
+                }
                 default:
                 {
                     if (can_change == true) {
@@ -602,6 +624,12 @@ void Load_bitmaps() {
 
     h_ghost_weak = (HBITMAP) LoadImage(NULL, "ghost_weak.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
     h_ghost_weak_mask = (HBITMAP) LoadImage(NULL, "ghost_weak_mask.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+    h_number = (HBITMAP) LoadImage(NULL, "number.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+    h_number_mask = (HBITMAP) LoadImage(NULL, "number_mask.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+    h_pacman_life = (HBITMAP) LoadImage(NULL, "pacman_life.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+    h_pacman_life_mask = (HBITMAP) LoadImage(NULL, "pacman_life_mask.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 }
 
 void Get_objects() {
@@ -613,6 +641,8 @@ void Get_objects() {
     GetObject(h_ghost_red, sizeof(BITMAP), &bmp_ghost_red);
     GetObject(h_ghost_green, sizeof(BITMAP), &bmp_ghost_green);
     GetObject(h_ghost_weak, sizeof(BITMAP), &bmp_ghost_weak);
+    GetObject(h_number, sizeof(BITMAP), &bmp_number);
+    GetObject(h_pacman_life, sizeof(BITMAP), &bmp_pacman_life);
 }
 
 void Initialize_objects() {
@@ -664,6 +694,20 @@ void Initialize_objects() {
     ghost_weak.dy = 10;
     //ghost_green.x = 600;
     //ghost_green.y = 180;
+
+    number.width = bmp_number.bmWidth / 5;
+    number.height = bmp_number.bmHeight / 2;
+    number.dx = 0;
+    number.dy = 0;
+    number.y = 717;
+    number.x = 50;
+
+    pacmanLife.width = bmp_pacman_life.bmWidth;
+    pacmanLife.height = bmp_pacman_life.bmHeight;
+    pacmanLife.dx = 0;
+    pacmanLife.dy = 0;
+    pacmanLife.y = 717;
+    pacmanLife.x = 1200;
 }
 
 void Update_scene(RECT* rect) {
@@ -685,6 +729,7 @@ void Draw_pacman() {
     else
         BitBlt(hdc_buffer, pacman.x, pacman.y + 10, pacman.width / 2, pacman.height / 4, hdc_mem, pacman_col * pacman.width / 2, pacman_row * pacman.height / 4, SRCPAINT);
 }
+
 
 void Draw_green_ghost() {
     if (pacman_can_eat_ghosts) {
@@ -718,7 +763,59 @@ void Draw_red_ghost() {
     }
 }
 
-void Draw_scene(HDC hdc, RECT* rect) {
+int get_number_column(char number) {
+    if(number == '0' || number == '6')
+        return 0;
+
+    if(number == '2' || number == '7')
+        return 1;
+
+    if(number == '3' || number == '8')
+        return 2;
+
+    if(number == '4' || number == '9')
+        return 3;
+
+    if(number == '5' || number == '1')
+        return 4;
+}
+int get_number_row(char number) {
+    if(number == '0' || number == '2' || number == '3' || number == '4' || number == '5')
+        return 0;
+    else
+        return 1;
+}
+
+
+void Draw_score(){
+    std::string displayScore = std::to_string(score);
+
+    int shiftAmount = 0;
+
+    for(const char& digit : displayScore) {
+        hbm_old = (HBITMAP) SelectObject(hdc_mem, h_number);
+        BitBlt(hdc_buffer, number.x + shiftAmount, number.y, number.width, number.height, hdc_mem, number.width * get_number_column(digit), number.height * get_number_row(digit), SRCPAINT);
+
+        hbm_old = (HBITMAP) SelectObject(hdc_mem, h_number_mask);
+        BitBlt(hdc_buffer, number.x + shiftAmount, number.y, number.width, number.height, hdc_mem, number.width * get_number_column(digit), number.height * get_number_row(digit), SRCAND);
+        shiftAmount += number.width;
+    }
+}
+
+void Draw_lives() {
+    int shiftAmount = 0;
+
+    for(int i; i < numberOfLives; ++i){
+        hbm_old = (HBITMAP) SelectObject(hdc_mem, h_pacman_life);
+        BitBlt(hdc_buffer, pacmanLife.x - shiftAmount, pacmanLife.y, pacmanLife.width, pacmanLife.height, hdc_mem, 0, 0, SRCPAINT);
+
+        hbm_old = (HBITMAP) SelectObject(hdc_mem, h_pacman_life_mask);
+        BitBlt(hdc_buffer, pacmanLife.x - shiftAmount, pacmanLife.y, pacmanLife.width, pacmanLife.height, hdc_mem, 0, 0, SRCAND);
+        shiftAmount += pacmanLife.width;
+    }
+}
+
+void Draw_scene(HWND hwnd, HDC hdc, RECT* rect) {
     hdc_buffer = CreateCompatibleDC(hdc);
     HBITMAP hbm_buffer = CreateCompatibleBitmap(hdc, rect->right, rect->bottom);
     HBITMAP hbm_old_buffer = (HBITMAP) SelectObject(hdc_buffer, hbm_buffer);
@@ -738,6 +835,8 @@ void Draw_scene(HDC hdc, RECT* rect) {
     Draw_big_dot3(hdc_buffer);
     Draw_big_dot4(hdc_buffer); // using hdc_mem keeps them rendered
 
+
+
     if (pacman_dead == false && delete_ghost == false) {
         Draw_pacman();
         Draw_green_ghost();
@@ -754,8 +853,11 @@ void Draw_scene(HDC hdc, RECT* rect) {
             PlaySound("pacman_eat_fruit.wav", NULL, SND_FILENAME | SND_ASYNC);
             already_ate = true;
             pacman_fruit = true;
-            score += 10;
-            fruit_row++;
+            score += fruit_score;
+            fruit_score += 10;
+            SetTimer(hwnd, FRUIT_TIMER, 1500, NULL);
+            RedrawWindow(static_label, NULL, NULL, RDW_ERASE);
+//            fruit_row++;
             printf("%d\n", score);
         }
     }
@@ -801,6 +903,9 @@ void Draw_scene(HDC hdc, RECT* rect) {
         weak_col = 0;
         delete_ghost = true;
     }
+
+    Draw_score();
+    Draw_lives();
 
     BitBlt(hdc, 0, 0, rect->right, rect->bottom, hdc_buffer, 0, 0, SRCCOPY);
 

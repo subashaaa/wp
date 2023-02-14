@@ -3,3 +3,24 @@
 	<tchar.h>
 	<windows.h>
 
+1676404078 source:c:\users\kerim\windowsprogramiranje\wp\main.cpp
+	<bits/stdc++.h>
+	<tchar.h>
+	<windows.h>
+	<stdio.h>
+	"sqlite3.h"
+	"resource.h"
+	<commctrl.h>
+	<commdlg.h>
+	<cstdio>
+	<cstdlib>
+	<string>
+	<fstream>
+	<iostream>
+	<vector>
+
+1676334945 c:\users\kerim\windowsprogramiranje\wp\sqlite3.h
+	<stdarg.h>
+
+1676334945 c:\users\kerim\windowsprogramiranje\wp\resource.h
+
