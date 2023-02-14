@@ -42,6 +42,8 @@
 #define GH 860
 #define MW 300
 #define MH 250
+#define NW 500
+#define NH 500
 
 #define s_dimension 20
 #define n_of_s_dots 70
@@ -121,6 +123,7 @@ int gender_error;
 int score;
 
 int callback(void *pArg, int argc, char **argv, char **imekolone);
+INT_PTR CALLBACK ShowNickInput(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK ShowLeaderBoard(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam);
 
 Object background, pacman, fruit, ghost_red, ghost_green, pacman_death, ghost_weak;
@@ -497,11 +500,18 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 }
                 case DEATH_TIMER:
                 {
+                    static int counter = 0;
                     if (pacman_dead) {
                         if (pacman_death_col < 10)
                             pacman_death_col++;
-                    } else
+                        counter++;
+                    } else {
                         pacman_death_col = 0;
+                    }
+
+                    if (pacman_dead && counter == 10) {
+                        DialogBox(NULL, MAKEINTRESOURCE(IDD_INPUT), hwnd2, ShowNickInput);
+                    }
                     break;
                 }
                 case EAT_GHOST_TIMER:
@@ -1074,6 +1084,61 @@ INT_PTR CALLBACK ShowLeaderBoard(HWND hdlg, UINT message, WPARAM wParam, LPARAM 
                     if(status == SQLITE_OK) {
                         MessageBox(hdlg, "Prikaz leaderboarda uspješan", "Success", MB_OK);
                         sqlite3_free(err);
+                    }
+                    else {
+                        MessageBox(hdlg, "Greška", "Failure", MB_OK);
+                        sqlite3_free(err);
+                        sqlite3_close(db);
+                        EndDialog(hdlg, 0);
+                        break;
+                    }
+                    break;
+                }
+			}
+			return TRUE;
+	    }
+	    case WM_CLOSE: {
+            EndDialog(hdlg, 0);
+            return TRUE;
+	    }
+        default:
+            return FALSE;
+    }
+}
+
+INT_PTR CALLBACK ShowNickInput(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam){
+    int status;
+    char* err = 0;
+    switch(message) {
+	    case WM_INITDIALOG: {
+            sqlite3_open("baza", &db);
+            return TRUE;
+	    }
+	    case WM_COMMAND: {
+	        switch(LOWORD(wParam))
+			{
+                case IDC_CONFIRM:
+                {
+                    char sql[200], temp_nick[200];
+
+                    temp_nick[0] = 0;
+
+                    HWND hwnd_nick = GetDlgItem(hdlg, IDC_INPUT_NICK);
+                    GetWindowText(hwnd_nick, temp_nick, sizeof(temp_nick));
+                    if(temp_nick[0] == 0) {
+                        MessageBox(hdlg, "Potrebno je unijeti nick", "Greska", MB_OK);
+                        break;
+                    }
+
+                    sprintf(sql, "INSERT INTO leaderboard (nick, score) VALUES ('%s', '%d')", temp_nick, score);
+
+                    status = sqlite3_exec(db, sql, 0, 0, &err);
+
+                    if(status == SQLITE_OK) {
+                        MessageBox(hdlg, "Vaš rezultat je unešen", "Success", MB_OK);
+                        sqlite3_free(err);
+                        sqlite3_close(db);
+                        EndDialog(hdlg, 0);
                     }
                     else {
                         MessageBox(hdlg, "Greška", "Failure", MB_OK);
