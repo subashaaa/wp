@@ -3,7 +3,11 @@
 	<tchar.h>
 	<windows.h>
 
+<<<<<<< HEAD
 1676404078 source:c:\users\kerim\windowsprogramiranje\wp\main.cpp
+=======
+1676399029 source:c:\users\kerim\windowsprogramiranje\wp\main.cpp
+>>>>>>> ba1c07ccd52f62e098ae8c147e8bb0780bb09285
 	<bits/stdc++.h>
 	<tchar.h>
 	<windows.h>
