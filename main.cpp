@@ -798,11 +798,8 @@ int get_number_row(char number) {
 
 
 void Draw_score(){
-<<<<<<< HEAD
     std::string displayScore = std::to_string(score);
 
-=======
->>>>>>> ba1c07ccd52f62e098ae8c147e8bb0780bb09285
     int shiftAmount = 0;
 
     for(const char& digit : displayScore) {
