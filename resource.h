@@ -13,3 +13,7 @@
 #define IDC_NICK 120
 #define IDC_SCORE 121
 #define IDC_LOAD 122
+
+#define IDC_INPUT_NICK 130
+#define IDC_CONFIRM 131
+#define IDD_INPUT 132
