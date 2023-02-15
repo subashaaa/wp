@@ -83,12 +83,10 @@ void Load_bitmaps();
 void Get_objects();
 void Initialize_objects();
 
-bool pacman_can_move_right();
-bool pacman_can_move_left();
-bool pacman_can_move_up();
-bool pacman_can_move_down();
+void resetState();
 
-bool pacman_colided_with_ghost();
+bool pacman_colided_with_green_ghost();
+bool pacman_colided_with_red_ghost();
 
 void Uncheck(HWND, HWND);
 void ButtonSwitch(HWND hwnd, HWND hwndControl);
@@ -126,6 +124,7 @@ int red_ghost_direction = LEFT;
 int green_ghost_direction = RIGHT;
 int pacman_gender;
 int gender_error;
+int counter;
 int score;
 int numberOfLives = 3;
 
@@ -148,13 +147,15 @@ static int pacman_row, pacman_col, fruit_row, pacman_death_col, green_ghost_row,
 
 static bool draw_fruit, pacman_fruit, pacman_dead, already_ate, initial_small_dots;
 static bool pacman_col_bd_1, pacman_col_bd_2, pacman_col_bd_3, pacman_col_bd_4;
-static bool pacman_can_eat_ghosts, delete_ghost, can_change;
+static bool pacman_can_eat_ghosts, delete_green_ghost, delete_red_ghost, can_change;
+
+int fruit_score = 10;
 
 int fruit_score = 10;
 
 LRESULT CALLBACK WindowProcedure(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK WindowProcedure2(HWND, UINT, WPARAM, LPARAM);
-HWND hwnd;
+HWND hwnd1;
 HWND hwnd2;
 HWND hwnd3;
 
@@ -271,13 +272,13 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     if (!RegisterClassEx (&wincl))
         return 0;
 
-    hwnd = CreateWindowEx (
+    hwnd1 = CreateWindowEx (
            0,                   /* Extended possibilites for variation */
            "Home",              /* Classname */
-           _T("Text box"),      /* Title Text */
+           _T("Home"),      /* Title Text */
            WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX, /* default window */
-           (SW - MW)/2,         /* Windows decides the position */
-           (SH - MH)/2,         /* where the window ends up on the screen */
+           SW/2 - MW,         /* Windows decides the position */
+           SH/2 - MH,         /* where the window ends up on the screen */
            MW,                  /* The programs width */
            MH,                  /* and height in pixels */
            HWND_DESKTOP,        /* The window is a child-window to desktop */
@@ -286,7 +287,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
            NULL                 /* No Window Creation data */
     );
 
-    ShowWindow(hwnd, nCmdShow);
+    ShowWindow(hwnd1, nCmdShow);
 
     while (GetMessage (&messages, NULL, 0, 0))
     {
@@ -369,9 +370,13 @@ LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
             }
             break;
         }
-        case WM_DESTROY:
+        case WM_CLOSE:
             PostQuitMessage (0);
             break;
+        case WM_DESTROY:{
+            PostQuitMessage (0);
+            break;
+        }
         default:
             return DefWindowProc (hwnd, message, wParam, lParam);
     }
@@ -388,19 +393,19 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
         {
             switch (wParam) {
                 case VK_LEFT:
-                    if(pacman_dead == false && pacman_can_move_left())
+                    if(pacman_dead == false && object_can_move_left(pacman))
                         pacman_direction = LEFT;
                     break;
                 case VK_RIGHT:
-                    if(pacman_dead == false && pacman_can_move_right())
+                    if(pacman_dead == false && object_can_move_right(pacman))
                         pacman_direction = RIGHT;
                     break;
                 case VK_UP:
-                    if(pacman_dead == false && pacman_can_move_up())
+                    if(pacman_dead == false && object_can_move_up(pacman))
                         pacman_direction = UP;
                     break;
                 case VK_DOWN:
-                    if(pacman_dead == false && pacman_can_move_down())
+                    if(pacman_dead == false && object_can_move_down(pacman))
                         pacman_direction = DOWN;
                     break;
             }
@@ -434,13 +439,13 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
             switch (wParam) {
                 case PACMAN_TIMER:
                 {
-                    if(pacman_direction == LEFT && pacman_can_move_left())
+                    if(pacman_direction == LEFT && object_can_move_left(pacman))
                         Move_pacman_left();
-                    if(pacman_direction == RIGHT && pacman_can_move_right())
+                    if(pacman_direction == RIGHT && object_can_move_right(pacman))
                         Move_pacman_right();
-                    if(pacman_direction == UP && pacman_can_move_up())
+                    if(pacman_direction == UP && object_can_move_up(pacman))
                         Move_pacman_up();
-                    if(pacman_direction == DOWN && pacman_can_move_down())
+                    if(pacman_direction == DOWN && object_can_move_down(pacman))
                         Move_pacman_down();
 
                     break;
@@ -515,7 +520,6 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 }
                 case DEATH_TIMER:
                 {
-                    static int counter = 0;
                     if (pacman_dead) {
                         if (pacman_death_col < 10)
                             pacman_death_col++;
@@ -526,12 +530,22 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
                     if (pacman_dead && counter == 10) {
                         DialogBox(NULL, MAKEINTRESOURCE(IDD_INPUT), hwnd2, ShowNickInput);
+                        Kill_timers(hwnd);
+                        ShowWindow(hwnd, 0);
+                        resetState();
+                        EndDialog(hwnd, 0);
                     }
                     break;
                 }
                 case EAT_GHOST_TIMER:
                 {
-                    //pacman_can_eat_ghosts = false;
+                    delete_green_ghost = false;
+                    delete_red_ghost = false;
+                    ghost_green.x = 600;
+                    ghost_green.y = 180;
+                    ghost_red.x = 600;
+                    ghost_red.y = 180;
+                    pacman_can_eat_ghosts = false;
                     break;
                 }
                 case WEAK_TIMER_CHANGE:
@@ -555,6 +569,7 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     KillTimer(hwnd, WEAK_TIMER_CHANGE_START);
                     KillTimer(hwnd, WEAK_TIMER_CHANGE);
                     pacman_can_eat_ghosts = false;
+
                     can_change = false;
                     printf("egte\n");
                     break;
@@ -578,8 +593,15 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
             }
             break;
         }
+        case WM_CLOSE:
+            Kill_timers(hwnd);
+            ShowWindow(hwnd, 0);
+            resetState();
+            EndDialog(hwnd, 0);
+            break;
         case WM_DESTROY:
             Kill_timers(hwnd);
+            ShowWindow(hwnd, 0);
             PostQuitMessage (0);
             break;
         default:
@@ -591,10 +613,10 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
 void Set_timers(HWND hwnd) {
     SetTimer(hwnd, ID_TIMER, 40, NULL);
-    SetTimer(hwnd, PACMAN_TIMER, 50, NULL);
+    SetTimer(hwnd, PACMAN_TIMER, 70, NULL);
     SetTimer(hwnd, DEATH_TIMER, 130, NULL);
-    SetTimer(hwnd, GREEN_GHOST_TIMER, 50, NULL);
-    SetTimer(hwnd, RED_GHOST_TIMER, 50, NULL);
+    SetTimer(hwnd, GREEN_GHOST_TIMER, 70, NULL);
+    SetTimer(hwnd, RED_GHOST_TIMER, 70, NULL);
 }
 
 void Kill_timers(HWND hwnd) {
@@ -615,7 +637,7 @@ void Load_bitmaps() {
         h_pacman = (HBITMAP) LoadImage(NULL, "pacwoman_move.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
         h_pacman_mask = (HBITMAP) LoadImage(NULL, "pacwoman_move_mask.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
     } else {
-        MessageBox(hwnd, "Niste odabrali gender", "Failure", MB_OK);
+        MessageBox(hwnd1, "Niste odabrali gender", "Failure", MB_OK);
         gender_error = 1;
         return;
     }
@@ -847,19 +869,22 @@ void Draw_scene(HWND hwnd, HDC hdc, RECT* rect) {
 
 
 
-    if (pacman_dead == false && delete_ghost == false) {
+    if (pacman_dead == false) {
         Draw_pacman();
-        Draw_green_ghost();
-        Draw_red_ghost();
-    } else if (pacman_dead == true && delete_ghost == false) {
+        if(!delete_green_ghost)
+            Draw_green_ghost();
+
+        if(!delete_red_ghost)
+            Draw_red_ghost();
+    } else if (pacman_dead && !delete_green_ghost && !delete_red_ghost) {
         Draw_pacman_death();
-    } else if (pacman_dead == false && delete_ghost == true) {
+    } else if (!pacman_dead && delete_green_ghost && delete_red_ghost) {
         Draw_pacman();
     }
 
     if ((pacman.x >= fruit.x - fruit.width / 4 && pacman.x <= fruit.x + fruit.width / 4) &&
         (pacman.y >= fruit.y - fruit.height / 16 && pacman.y <= fruit.y + fruit.height / 16)) {
-        if (already_ate == false) {
+        if (!already_ate && !pacman_dead) {
             PlaySound("pacman_eat_fruit.wav", NULL, SND_FILENAME | SND_ASYNC);
             already_ate = true;
             pacman_fruit = true;
@@ -867,33 +892,32 @@ void Draw_scene(HWND hwnd, HDC hdc, RECT* rect) {
             fruit_score += 10;
             SetTimer(hwnd, FRUIT_TIMER, 1500, NULL);
             RedrawWindow(static_label, NULL, NULL, RDW_ERASE);
-//            fruit_row++;
-            printf("%d\n", score);
+            fruit_row = (fruit_row == 3) ? 0 : fruit_row + 1;
         }
     }
 
-    if (pacman.x >= big_dots[0].x - 10 && pacman.x <= big_dots[0].x + 10 && pacman.y <= 200) {
+    if (pacman.y == 50 && pacman.x == 30 && !pacman_col_bd_1) {
         pacman_col_bd_1 = true;
         pacman_can_eat_ghosts = true;
         can_change = true;
         PlaySound("pacman_intermission.wav", NULL, SND_FILENAME | SND_ASYNC);
     }
 
-    if (pacman.x >= big_dots[1].x - 10 && pacman.x <= big_dots[1].x + 10 && pacman.y <= 200) {
+    if (pacman.y == 50 && pacman.x == 1150 && !pacman_col_bd_2) {
         pacman_col_bd_2 = true;
         pacman_can_eat_ghosts = true;
         can_change = true;
         PlaySound("pacman_intermission.wav", NULL, SND_FILENAME | SND_ASYNC);
     }
 
-    if (pacman.x >= big_dots[2].x - 10 && pacman.x <= big_dots[2].x + 10 && pacman.y >= 500) {
+    if (pacman.y == 570 && pacman.x == 30 && !pacman_col_bd_3) {
         pacman_col_bd_3 = true;
         pacman_can_eat_ghosts = true;
         can_change = true;
         PlaySound("pacman_intermission.wav", NULL, SND_FILENAME | SND_ASYNC);
     }
 
-    if (pacman.x >= big_dots[3].x - 10 && pacman.x <= big_dots[3].x + 10 && pacman.y >= 500) {
+    if (pacman.y == 570 && pacman.x == 1150 && !pacman_col_bd_4) {
         pacman_col_bd_4 = true;
         pacman_can_eat_ghosts = true;
         can_change = true;
@@ -904,15 +928,32 @@ void Draw_scene(HWND hwnd, HDC hdc, RECT* rect) {
         Draw_fruit();
     }
 
-    if (pacman_colided_with_ghost() && pacman_can_eat_ghosts == false) {
-        pacman_death.x = pacman.x;
-        pacman_death.y = pacman.y;
-        pacman_dead = true;
-        PlaySound("pacman_death.wav", NULL, SND_FILENAME | SND_ASYNC);
-    } else if (pacman_colided_with_ghost() && pacman_can_eat_ghosts == true) {
+    if (((pacman_colided_with_green_ghost() && !delete_green_ghost) ||
+         (pacman_colided_with_red_ghost() && !delete_red_ghost)) &&
+         !pacman_can_eat_ghosts) {
+        if(numberOfLives > 1){
+            numberOfLives--;
+            pacman.x = 600;
+            pacman.y = 570;
+        } else {
+            pacman_death.x = pacman.x;
+            pacman_death.y = pacman.y;
+            pacman.x++;
+            pacman.y++;
+            pacman_dead = true;
+            PlaySound("pacman_death.wav", NULL, SND_FILENAME | SND_ASYNC);
+        }
+    } else if (pacman_colided_with_green_ghost() && pacman_can_eat_ghosts && !delete_green_ghost) {
         weak_col = 0;
-        delete_ghost = true;
+        delete_green_ghost = true;
+        score = score + 200;
+    } else if (pacman_colided_with_red_ghost() && pacman_can_eat_ghosts && !delete_red_ghost) {
+        weak_col = 0;
+        delete_red_ghost = true;
+        score = score + 200;
     }
+    Draw_score();
+    Draw_lives();
 
     Draw_score();
     Draw_lives();
@@ -986,142 +1027,6 @@ void Draw_fruit() {
     BitBlt(hdc_buffer, fruit.x, fruit.y, fruit.width, fruit.height / 4, hdc_mem, 0 * fruit.width, fruit_row * fruit.height / 4, SRCPAINT);
 }
 
-bool pacman_can_move_right(){
-    if(pacman.y == 570 && pacman.x > 359 && pacman.x < 820)
-        return true;
-
-    if(pacman.y == 570 && pacman.x > 29 && pacman.x < 230)
-        return true;
-
-    if(pacman.y == 570 && pacman.x > 949 && pacman.x < 1150)
-        return true;
-
-    if(pacman.y == 440 && pacman.x > 159 && pacman.x < 1020)
-        return true;
-
-    if(pacman.y == 180 && pacman.x > 159 && pacman.x < 1020)
-        return true;
-
-    if(pacman.y == 50 && pacman.x > 359 && pacman.x < 820)
-        return true;
-
-    if(pacman.y == 50 && pacman.x > 29 && pacman.x < 230)
-        return true;
-
-    if(pacman.y == 50 && pacman.x > 949 && pacman.x < 1150)
-        return true;
-
-    if(pacman.y == 310 && pacman.x > 29 && pacman.x < 360)
-        return true;
-
-    if(pacman.y == 310 && pacman.x > 819 && pacman.x < 1150)
-        return true;
-
-    return false;
-}
-
-bool pacman_can_move_left(){
-    if(pacman.y == 570 && pacman.x > 360 && pacman.x < 821)
-        return true;
-
-    if(pacman.y == 570 && pacman.x > 30 && pacman.x < 231)
-        return true;
-
-    if(pacman.y == 570 && pacman.x > 950 && pacman.x < 1151)
-        return true;
-
-    if(pacman.y == 440 && pacman.x > 160 && pacman.x < 1021)
-        return true;
-
-    if(pacman.y == 180 && pacman.x > 160 && pacman.x < 1021)
-        return true;
-
-    if(pacman.y == 50 && pacman.x > 360 && pacman.x < 821)
-        return true;
-
-    if(pacman.y == 50 && pacman.x > 30 && pacman.x < 231)
-        return true;
-
-    if(pacman.y == 50 && pacman.x > 950 && pacman.x < 1151)
-        return true;
-
-    if(pacman.y == 310 && pacman.x > 30 && pacman.x < 361)
-        return true;
-
-    if(pacman.y == 310 && pacman.x > 820 && pacman.x < 1151)
-        return true;
-
-    return false;
-}
-
-bool pacman_can_move_up() {
-    if(pacman.x == 360 && pacman.y < 571 && pacman.y > 50)
-        return true;
-
-    if(pacman.x == 820 && pacman.y < 571 && pacman.y > 50)
-        return true;
-
-    if(pacman.x == 1150 && pacman.y < 571 && pacman.y > 50)
-        return true;
-
-    if(pacman.x == 30 && pacman.y < 571 && pacman.y > 50)
-        return true;
-
-    if(pacman.x == 160 && pacman.y < 441 && pacman.y > 180)
-        return true;
-
-    if(pacman.x == 1020 && pacman.y < 441 && pacman.y > 180)
-        return true;
-
-    if(pacman.x == 230 && pacman.y < 181 && pacman.y > 50)
-        return true;
-
-    if(pacman.x == 950 && pacman.y < 181 && pacman.y > 50)
-        return true;
-
-    if(pacman.x == 230 && pacman.y < 571 && pacman.y > 440)
-        return true;
-
-    if(pacman.x == 950 && pacman.y < 571 && pacman.y > 440)
-        return true;
-
-    return false;
-}
-
-bool pacman_can_move_down() {
-    if(pacman.x == 360 && pacman.y < 570 && pacman.y > 49)
-        return true;
-
-    if(pacman.x == 820 && pacman.y < 570 && pacman.y > 49)
-        return true;
-
-    if(pacman.x == 1150 && pacman.y < 570 && pacman.y > 49)
-        return true;
-
-    if(pacman.x == 30 && pacman.y < 570 && pacman.y > 49)
-        return true;
-
-    if(pacman.x == 160 && pacman.y < 440 && pacman.y > 179)
-        return true;
-
-    if(pacman.x == 1020 && pacman.y < 440 && pacman.y > 179)
-        return true;
-
-    if(pacman.x == 230 && pacman.y < 180 && pacman.y > 49)
-        return true;
-
-    if(pacman.x == 950 && pacman.y < 180 && pacman.y > 49)
-        return true;
-
-    if(pacman.x == 230 && pacman.y < 570 && pacman.y > 439)
-        return true;
-
-    if(pacman.x == 950 && pacman.y < 570 && pacman.y > 439)
-        return true;
-
-    return false;
-}
-
 void ButtonSwitch(HWND hwnd, HWND hwndControl)
 {
     SendMessage(hwndControl, BM_SETCHECK, !SendMessage(hwndControl, BM_GETCHECK, 0, 0), 0);
@@ -1187,11 +1092,11 @@ INT_PTR CALLBACK ShowLeaderBoard(HWND hdlg, UINT message, WPARAM wParam, LPARAM 
 
                     status = sqlite3_exec(db, sql, callback, 0, &err);
                     if(status == SQLITE_OK) {
-                        MessageBox(hdlg, "Prikaz leaderboarda uspješan", "Success", MB_OK);
+                        MessageBox(hdlg, "Prikaz leaderboarda uspjeï¿½an", "Success", MB_OK);
                         sqlite3_free(err);
                     }
                     else {
-                        MessageBox(hdlg, "Greška", "Failure", MB_OK);
+                        MessageBox(hdlg, "Greï¿½ka", "Failure", MB_OK);
                         sqlite3_free(err);
                         sqlite3_close(db);
                         EndDialog(hdlg, 0);
@@ -1240,18 +1145,19 @@ INT_PTR CALLBACK ShowNickInput(HWND hdlg, UINT message, WPARAM wParam, LPARAM lP
                     status = sqlite3_exec(db, sql, 0, 0, &err);
 
                     if(status == SQLITE_OK) {
-                        MessageBox(hdlg, "Vaš rezultat je unešen", "Success", MB_OK);
+                        MessageBox(hdlg, "Vaï¿½ rezultat je uneï¿½en", "Success", MB_OK);
                         sqlite3_free(err);
                         sqlite3_close(db);
                         EndDialog(hdlg, 0);
                     }
                     else {
-                        MessageBox(hdlg, "Greška", "Failure", MB_OK);
+                        MessageBox(hdlg, "Greï¿½ka", "Failure", MB_OK);
                         sqlite3_free(err);
                         sqlite3_close(db);
                         EndDialog(hdlg, 0);
                         break;
                     }
+                    //EndDialog(hdlg, 0);
                     break;
                 }
 			}
@@ -1267,6 +1173,9 @@ INT_PTR CALLBACK ShowNickInput(HWND hdlg, UINT message, WPARAM wParam, LPARAM lP
 }
 
 bool object_can_move_right(Object& object){
+    if(pacman_dead)
+        return false;
+
     if(object.y == 570 && object.x > 359 && object.x < 820)
         return true;
 
@@ -1301,6 +1210,9 @@ bool object_can_move_right(Object& object){
 }
 
 bool object_can_move_left(Object& object){
+    if(pacman_dead)
+        return false;
+
     if(object.y == 570 && object.x > 360 && object.x < 821)
         return true;
 
@@ -1335,6 +1247,9 @@ bool object_can_move_left(Object& object){
 }
 
 bool object_can_move_up(Object& object) {
+    if(pacman_dead)
+        return false;
+
     if(object.x == 360 && object.y < 571 && object.y > 50)
         return true;
 
@@ -1369,6 +1284,9 @@ bool object_can_move_up(Object& object) {
 }
 
 bool object_can_move_down(Object& object) {
+    if(pacman_dead)
+        return false;
+
     if(object.x == 360 && object.y < 570 && object.y > 49)
         return true;
 
@@ -1402,11 +1320,15 @@ bool object_can_move_down(Object& object) {
     return false;
 }
 
-bool pacman_colided_with_ghost() {
-    if(pacman.x == ghost_red.x && pacman.y == ghost_red.y)
+bool pacman_colided_with_green_ghost() {
+    if(pacman.x == ghost_green.x && pacman.y == ghost_green.y)
         return true;
 
-    if(pacman.x == ghost_green.x && pacman.y == ghost_green.y)
+    return false;
+}
+
+bool pacman_colided_with_red_ghost() {
+    if(pacman.x == ghost_red.x && pacman.y == ghost_red.y)
         return true;
 
     return false;
@@ -1446,6 +1368,51 @@ void Draw_big_dot4(HDC hdc) {
         Ellipse(hdc, big_dots[3].x - b_dimension / 2, big_dots[3].y + b_dimension / 2, big_dots[3].x + b_dimension / 2, big_dots[3].y - b_dimension / 2);
         //printf("crtam 4 \n");
     }
+}
+
+void resetState() {
+    pacman_direction = 0;
+    red_ghost_direction = LEFT;
+    green_ghost_direction = RIGHT;
+    score = 0;
+    numberOfLives = 3;
+
+    pacman.x = 600;
+    pacman.y = 570;
+
+    ghost_green.x = 600;
+    ghost_green.y = 180;
+
+    ghost_red.x = 600;
+    ghost_red.y = 180;
+
+    pacman_row = 0;
+    pacman_col = 0;
+    fruit_row = 0;
+    pacman_death_col = 0;
+    green_ghost_row = 0;
+    green_ghost_col = 0;
+    red_ghost_row = 0;
+    red_ghost_col = 0;
+    weak_col = 0;
+
+    draw_fruit = false;
+    pacman_fruit = false;
+    pacman_dead = false;
+    already_ate = false;
+    initial_small_dots = false;
+    pacman_col_bd_1 = false;
+    pacman_col_bd_2 = false;
+    pacman_col_bd_3 = false;
+    pacman_col_bd_4 = false;
+    pacman_can_eat_ghosts = false;
+    delete_green_ghost = false;
+    delete_red_ghost = false;
+    can_change= false;
+
+    fruit_score = 10;
+
+    counter = 0;
 }
 
 //void Draw_small_dots(HDC hdc) {
