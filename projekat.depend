@@ -3,11 +3,25 @@
 	<tchar.h>
 	<windows.h>
 
-<<<<<<< HEAD
-1676404078 source:c:\users\kerim\windowsprogramiranje\wp\main.cpp
-=======
-1676399029 source:c:\users\kerim\windowsprogramiranje\wp\main.cpp
->>>>>>> ba1c07ccd52f62e098ae8c147e8bb0780bb09285
+1675075034 D
+
+1676468310 source:c:\users\kerim\windowsprogramiranje\wp\main.cpp
+	<bits/stdc++.h>
+	<tchar.h>
+	<windows.h>
+	<stdio.h>
+	"sqlite3.h"
+	"resource.h"
+	<commctrl.h>
+	<commdlg.h>
+	<cstdio>
+	<cstdlib>
+	<string>
+	<fstream>
+	<iostream>
+	<vector>
+
+1676399029 c07ccd52f62e098ae8c147e8bb0780bb09285
 	<bits/stdc++.h>
 	<tchar.h>
 	<windows.h>
@@ -26,5 +40,11 @@
 1676334945 c:\users\kerim\windowsprogramiranje\wp\sqlite3.h
 	<stdarg.h>
 
-1676334945 c:\users\kerim\windowsprogramiranje\wp\resource.h
+1676407015 c:\users\kerim\windowsprogramiranje\wp\resource.h
+
+1676407015 source:c:\users\kerim\windowsprogramiranje\wp\resources.rc
+	<windows.h>
+	<commctrl.h>
+	<richedit.h>
+	"resource.h"
 
