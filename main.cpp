@@ -943,7 +943,6 @@ void Draw_scene(HWND hwnd, HDC hdc, RECT* rect) {
 }
 
 void Move_pacman_left() {
-    printf("%d\n", pacman.x);
     PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 0;
     if (pacman.x > 0)
@@ -956,7 +955,6 @@ void Move_pacman_left() {
 }
 
 void Move_pacman_right() {
-    printf("%d\n", pacman.x);
     PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 1;
 
@@ -970,7 +968,6 @@ void Move_pacman_right() {
 }
 
 void Move_pacman_up() {
-    printf("%d\n", pacman.x);
     PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 2;
 
@@ -983,7 +980,6 @@ void Move_pacman_up() {
 }
 
 void Move_pacman_down() {
-    printf("%d\n", pacman.x);
     PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 3;
 
