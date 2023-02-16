@@ -34,7 +34,6 @@
 #define WEAK_TIMER_CHANGE_START 13
 #define WEAK_TIMER_CHANGE 14
 #define WEAK_TIMER_END 15
-#define EAT_GHOST_TIMER_END 16
 #define FRUIT_TIMER 17
 
 #define SW 1920
@@ -92,8 +91,6 @@ void Uncheck(HWND, HWND);
 void ButtonSwitch(HWND hwnd, HWND hwndControl);
 
 void Draw_pacman_death();
-//void Draw_small_dots(HDC hdc);
-//void Draw_big_dots(HDC hdc);
 void Draw_green_ghost();
 void Draw_red_ghost();
 
@@ -148,8 +145,6 @@ static int pacman_row, pacman_col, fruit_row, pacman_death_col, green_ghost_row,
 static bool draw_fruit, pacman_fruit, pacman_dead, already_ate, initial_small_dots;
 static bool pacman_col_bd_1, pacman_col_bd_2, pacman_col_bd_3, pacman_col_bd_4;
 static bool pacman_can_eat_ghosts, delete_green_ghost, delete_red_ghost, can_change;
-
-int fruit_score = 10;
 
 int fruit_score = 10;
 
@@ -300,10 +295,6 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
 
 LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    // also, 2nd window should have some black space on top
-    // to show current score
-    // and some black space on bottom
-    // to show currently eaten fruit and number of lives
     HINSTANCE hinst = (HINSTANCE)GetWindowLong(hwnd, GWLP_HINSTANCE);
     switch (message)
     {
@@ -333,8 +324,8 @@ LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                            "Game",              /* Classname */
                            _T("Code::Blocks Template Windows App"),       /* Title Text */
                            WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX,      /* default window */
-                           0,         /* Windows decides the position */
-                           0,         /* where the window ends up on the screen */
+                           (SW-GW)/2,         /* Windows decides the position */
+                           (SH-GH)/2,         /* where the window ends up on the screen */
                            GW,                  /* The programs width */
                            GH,                  /* and height in pixels */
                            hwnd,                /* The window is a child-window to desktop */
@@ -414,11 +405,6 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
         case WM_CREATE:
         {
             PlaySound("pacman_beginning.wav", NULL, SND_FILENAME | SND_ASYNC);
-            // to-do: everything has to stop until this sound finishes
-            // blocking call
-            //const char* display_score = std::to_string(score).c_str();
-            //static_label = CreateWindow(L"Static", display_score,WS_CHILD | WS_VISIBLE,750,1000,175,25,hwnd,0, hinst,0);
-
 
             Set_timers(hwnd);
 
@@ -546,6 +532,13 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     ghost_red.x = 600;
                     ghost_red.y = 180;
                     pacman_can_eat_ghosts = false;
+
+                    KillTimer(hwnd, EAT_GHOST_TIMER);
+                    KillTimer(hwnd, WEAK_TIMER_CHANGE_START);
+                    KillTimer(hwnd, WEAK_TIMER_CHANGE);
+                    pacman_can_eat_ghosts = false;
+
+                    can_change = false;
                     break;
                 }
                 case WEAK_TIMER_CHANGE:
@@ -555,23 +548,11 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     else if (weak_col == 1)
                         weak_col = 0;
 
-                    printf("tc\n");
                     break;
                 }
                 case WEAK_TIMER_CHANGE_START:
                 {
                     SetTimer(hwnd, WEAK_TIMER_CHANGE, 300, NULL);
-                    break;
-                }
-                case EAT_GHOST_TIMER_END:
-                {
-                    KillTimer(hwnd, EAT_GHOST_TIMER);
-                    KillTimer(hwnd, WEAK_TIMER_CHANGE_START);
-                    KillTimer(hwnd, WEAK_TIMER_CHANGE);
-                    pacman_can_eat_ghosts = false;
-
-                    can_change = false;
-                    printf("egte\n");
                     break;
                 }
                 case FRUIT_TIMER:
@@ -586,7 +567,6 @@ LRESULT CALLBACK WindowProcedure2(HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     if (can_change == true) {
                         SetTimer(hwnd, EAT_GHOST_TIMER, 8000, NULL);
                         SetTimer(hwnd, WEAK_TIMER_CHANGE_START, 4000, NULL);
-                        SetTimer(hwnd, EAT_GHOST_TIMER_END, 12001, NULL);
                         can_change = false;
                     }
                 }
@@ -724,8 +704,6 @@ void Initialize_objects() {
     ghost_weak.height = bmp_ghost_weak.bmHeight;
     ghost_weak.dx = 10;
     ghost_weak.dy = 10;
-    //ghost_green.x = 600;
-    //ghost_green.y = 180;
 
     number.width = bmp_number.bmWidth / 5;
     number.height = bmp_number.bmHeight / 2;
@@ -859,15 +837,10 @@ void Draw_scene(HWND hwnd, HDC hdc, RECT* rect) {
     SelectObject(hdc, brush);
     SelectObject(hdc, pen);
 
-    // add pacman ability to eat ghosts
     Draw_big_dot1(hdc_buffer);
     Draw_big_dot2(hdc_buffer);
-
-    // needs refinement
     Draw_big_dot3(hdc_buffer);
-    Draw_big_dot4(hdc_buffer); // using hdc_mem keeps them rendered
-
-
+    Draw_big_dot4(hdc_buffer);
 
     if (pacman_dead == false) {
         Draw_pacman();
@@ -970,6 +943,7 @@ void Draw_scene(HWND hwnd, HDC hdc, RECT* rect) {
 }
 
 void Move_pacman_left() {
+    printf("%d\n", pacman.x);
     PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 0;
     if (pacman.x > 0)
@@ -982,6 +956,7 @@ void Move_pacman_left() {
 }
 
 void Move_pacman_right() {
+    printf("%d\n", pacman.x);
     PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 1;
 
@@ -995,6 +970,7 @@ void Move_pacman_right() {
 }
 
 void Move_pacman_up() {
+    printf("%d\n", pacman.x);
     PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 2;
 
@@ -1007,6 +983,7 @@ void Move_pacman_up() {
 }
 
 void Move_pacman_down() {
+    printf("%d\n", pacman.x);
     PlaySound("pacman_chomp.wav", NULL, SND_FILENAME | SND_ASYNC | SND_NOSTOP);
     pacman_row = 3;
 
@@ -1063,7 +1040,7 @@ int callback(void *pArg, int argc, char **argv, char **imekolone) {
 
     memset(&lvItem, 0, sizeof(lvItem));
     lvItem.mask = LVIF_TEXT;
-    lvItem.pszText = strcat(argv[0], strcat(strcat(argv[1], " "), argv[2]));
+    lvItem.pszText = strcat(strcat(argv[1], " "), argv[2]);
     lvItem.iSubItem = 0;
     ListView_InsertItem(listHandle, &lvItem);
 
@@ -1088,15 +1065,14 @@ INT_PTR CALLBACK ShowLeaderBoard(HWND hdlg, UINT message, WPARAM wParam, LPARAM 
                 {
                     char sql[200];
 
-                    sprintf(sql, "SELECT * FROM leaderboard ORDER BY score DESC");
+                    sprintf(sql, "SELECT * FROM leaderboard ORDER BY score ASC");
 
                     status = sqlite3_exec(db, sql, callback, 0, &err);
                     if(status == SQLITE_OK) {
-                        MessageBox(hdlg, "Prikaz leaderboarda uspje�an", "Success", MB_OK);
+                        MessageBox(hdlg, "Prikaz leaderboarda uspjesan", "Success", MB_OK);
                         sqlite3_free(err);
-                    }
-                    else {
-                        MessageBox(hdlg, "Gre�ka", "Failure", MB_OK);
+                    } else {
+                        MessageBox(hdlg, "Greska", "Failure", MB_OK);
                         sqlite3_free(err);
                         sqlite3_close(db);
                         EndDialog(hdlg, 0);
@@ -1145,19 +1121,21 @@ INT_PTR CALLBACK ShowNickInput(HWND hdlg, UINT message, WPARAM wParam, LPARAM lP
                     status = sqlite3_exec(db, sql, 0, 0, &err);
 
                     if(status == SQLITE_OK) {
-                        MessageBox(hdlg, "Va� rezultat je une�en", "Success", MB_OK);
+                        MessageBox(hdlg, "Vas rezultat je unesen", "Success", MB_OK);
                         sqlite3_free(err);
                         sqlite3_close(db);
                         EndDialog(hdlg, 0);
-                    }
-                    else {
-                        MessageBox(hdlg, "Gre�ka", "Failure", MB_OK);
+                        break;
+                    } else if (status == SQLITE_CONSTRAINT) {
+                        MessageBox(hdlg, "Nick vec postoji", "Failure", MB_OK);
+                        break;
+                    } else {
+                        MessageBox(hdlg, "Greska", "Failure", MB_OK);
                         sqlite3_free(err);
                         sqlite3_close(db);
                         EndDialog(hdlg, 0);
                         break;
                     }
-                    //EndDialog(hdlg, 0);
                     break;
                 }
 			}
@@ -1175,6 +1153,9 @@ INT_PTR CALLBACK ShowNickInput(HWND hdlg, UINT message, WPARAM wParam, LPARAM lP
 bool object_can_move_right(Object& object){
     if(pacman_dead)
         return false;
+
+    if(object.y == 310 && object.x > 819 && object.x >= 1190)
+        object.x = 0;
 
     if(object.y == 570 && object.x > 359 && object.x < 820)
         return true;
@@ -1200,10 +1181,10 @@ bool object_can_move_right(Object& object){
     if(object.y == 50 && object.x > 949 && object.x < 1150)
         return true;
 
-    if(object.y == 310 && object.x > 29 && object.x < 360)
+    if(object.y == 310 && object.x >= 0 && object.x < 360)
         return true;
 
-    if(object.y == 310 && object.x > 819 && object.x < 1150)
+    if(object.y == 310 && object.x > 819 && object.x < 1200)
         return true;
 
     return false;
@@ -1212,6 +1193,9 @@ bool object_can_move_right(Object& object){
 bool object_can_move_left(Object& object){
     if(pacman_dead)
         return false;
+
+    if(object.y == 310 && object.x == 0 && object.x < 361)
+        object.x = 1190;
 
     if(object.y == 570 && object.x > 360 && object.x < 821)
         return true;
@@ -1237,10 +1221,10 @@ bool object_can_move_left(Object& object){
     if(object.y == 50 && object.x > 950 && object.x < 1151)
         return true;
 
-    if(object.y == 310 && object.x > 30 && object.x < 361)
+    if(object.y == 310 && object.x >= 0 && object.x < 361)
         return true;
 
-    if(object.y == 310 && object.x > 820 && object.x < 1151)
+    if(object.y == 310 && object.x > 820 && object.x <= 1190)
         return true;
 
     return false;
@@ -1345,28 +1329,24 @@ void Draw_pacman_death() {
 void Draw_big_dot1(HDC hdc) {
     if (pacman_col_bd_1 == false) {
         Ellipse(hdc, big_dots[0].x - b_dimension / 2, big_dots[0].y + b_dimension / 2, big_dots[0].x + b_dimension / 2, big_dots[0].y - b_dimension / 2);
-        //printf("%d \n", big_dots[0].x);
     }
 }
 
 void Draw_big_dot2(HDC hdc) {
     if (pacman_col_bd_2 == false) {
         Ellipse(hdc, big_dots[1].x - b_dimension / 2, big_dots[1].y + b_dimension / 2, big_dots[1].x + b_dimension / 2, big_dots[1].y - b_dimension / 2);
-        //printf("crtam 2 \n");
     }
 }
 
 void Draw_big_dot3(HDC hdc) {
     if (pacman_col_bd_3 == false) {
         Ellipse(hdc, big_dots[2].x - b_dimension / 2, big_dots[2].y + b_dimension / 2, big_dots[2].x + b_dimension / 2, big_dots[2].y - b_dimension / 2);
-       // printf("crtam 3 \n");
     }
 }
 
 void Draw_big_dot4(HDC hdc) {
     if (pacman_col_bd_4 == false) {
         Ellipse(hdc, big_dots[3].x - b_dimension / 2, big_dots[3].y + b_dimension / 2, big_dots[3].x + b_dimension / 2, big_dots[3].y - b_dimension / 2);
-        //printf("crtam 4 \n");
     }
 }
 
